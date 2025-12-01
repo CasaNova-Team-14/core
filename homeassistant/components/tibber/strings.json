@@ -52,6 +52,9 @@
       "electricity_price": {
         "name": "Electricity price"
       },
+      "electricity_price_energy": {
+        "name": "Electricity price (energy)"
+      },
       "estimated_hour_consumption": {
         "name": "Estimated consumption current hour"
       },
