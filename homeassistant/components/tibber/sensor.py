@@ -645,6 +645,7 @@ class TibberSensorElPriceEnergy(TibberSensorElPrice):
     """Variant of TibberSensorElPrice energy price (without taxes)."""
 
     def __init__(self, tibber_home: tibber.TibberHome) -> None:
+        """Init energy price sensor."""
         super().__init__(tibber_home=tibber_home)
 
         self._attr_unique_id = f"{self._tibber_home.home_id}_energy"
@@ -657,13 +658,6 @@ class TibberSensorElPriceEnergy(TibberSensorElPrice):
         self._attr_native_value = self._tibber_home.info["viewer"]["home"][
             "currentSubscription"
         ]["priceInfo"]["current"]["energy"]
-
-    async def _fetch_data(self) -> None:
-        _LOGGER.debug("Fetching data")
-        try:
-            await self._tibber_home.update_info_and_price_info()
-        except (TimeoutError, aiohttp.ClientError):
-            return
 
 class TibberDataSensor(TibberSensor, CoordinatorEntity[TibberDataCoordinator]):
     """Representation of a Tibber sensor."""
