@@ -642,7 +642,7 @@ class TibberSensorElPrice(TibberSensor):
         return False
         
 class TibberSensorElPriceEnergy(TibberSensorElPrice):
-    """Variant of TibberSensorElPrice energy price (without taxes)"""
+    """Variant of TibberSensorElPrice energy price (without taxes)."""
 
     def __init__(self, tibber_home: tibber.TibberHome) -> None:
         super().__init__(tibber_home=tibber_home)
@@ -658,7 +658,6 @@ class TibberSensorElPriceEnergy(TibberSensorElPrice):
             "currentSubscription"
         ]["priceInfo"]["current"]["energy"]
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
     async def _fetch_data(self) -> None:
         _LOGGER.debug("Fetching data")
         try:
