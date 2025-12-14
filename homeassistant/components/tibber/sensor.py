@@ -659,6 +659,86 @@ class TibberSensorElPriceEnergy(TibberSensorElPrice):
             "currentSubscription"
         ]["priceInfo"]["current"]["energy"]
 
+class TibberSensorElPriceEnergy(TibberSensor):
+    """Representation of a Tibber sensor for el price without tax."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_translation_key = "electricity_price_energy"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, tibber_home: tibber.TibberHome) -> None:
+        """Initialize the sensor."""
+        super().__init__(tibber_home=tibber_home)
+        self._last_updated: datetime.datetime | None = None
+        self._spread_load_constant = randrange(TWENTY_MINUTES)
+
+        self._attr_available = False
+        self._attr_icon = ICON
+        self._attr_unique_id = f"{self._tibber_home.home_id}_energy"
+        self._model = "Price Sensor"
+        self._device_name = self._home_name
+
+    async def async_update(self) -> None:
+        """Get the latest data and updates the states."""
+        now = dt_util.now()
+        if (
+            not self._tibber_home.last_data_timestamp
+            or (self._tibber_home.last_data_timestamp - now).total_seconds()
+            < 10 * 3600 - self._spread_load_constant
+            or not self.available
+        ):
+            _LOGGER.debug("Asking for new data")
+            await self._fetch_data()
+
+        elif (
+            self._tibber_home.price_total
+            and self._last_updated
+            and self._last_updated.hour == now.hour
+            and now - self._last_updated < timedelta(minutes=15)
+            and self._tibber_home.last_data_timestamp
+        ):
+            return
+
+        self._attr_native_value = self._get_energy_price(now)
+        self._attr_available = self._attr_native_value is not None
+        self._attr_native_unit_of_measurement = self._tibber_home.price_unit
+
+    def _get_energy_price(self, now: datetime.datetime) -> float | None:
+        """Get energy price without tax from raw data."""
+        try:
+            price_info = (
+                self._tibber_home.info.get("viewer", {})
+                .get("home", {})
+                .get("currentSubscription", {})
+                .get("priceInfo", {})
+            )
+            today = price_info.get("today", [])
+            tomorrow = price_info.get("tomorrow", [])
+
+            for item in today + tomorrow:
+                price_time = dt_util.parse_datetime(item["startsAt"])
+                if price_time is None:
+                    continue
+                price_time = price_time.astimezone(
+                    self._tibber_home._tibber_control.time_zone
+                )
+                time_diff = (now - price_time).total_seconds() / 3600
+                if 0 <= time_diff < 0.25:
+                    self._last_updated = price_time
+                    return round(item.get("energy", 0), 3)
+        except (KeyError, TypeError):
+            pass
+        return None
+
+    @Throttle(MIN_TIME_BETWEEN_UPDATES)
+    async def _fetch_data(self) -> None:
+        _LOGGER.debug("Fetching data")
+        try:
+            await self._tibber_home.update_info_and_price_info()
+        except (TimeoutError, aiohttp.ClientError):
+            return
+
+
 class TibberDataSensor(TibberSensor, CoordinatorEntity[TibberDataCoordinator]):
     """Representation of a Tibber sensor."""
 
